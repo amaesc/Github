@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Architecture Calculator Test</title>
+</head>
+<body>
+    <h1>Clean Architecture Calculator</h1>
+    <p>Open the browser console (F12) to see the test results!</p>
+    
+    <div id="output"></div>
+
+    <script>
+        // ========================================
+        // DOMAIN LAYER - Core Business Logic
+        // ========================================
+
+        // Domain Entities - Pure business objects
+        class CalculationResult {
+          constructor(value, operation, operands) {
+            this.value = value;
+            this.operation = operation;
+            this.operands = operands;
+            this.timestamp = new Date();
+          }
+
+          isValid() {
+            return this.value !== null && !isNaN(this.value) && isFinite(this.value);
+          }
+
+          toString() {
+            return `${this.operands.join(` ${this.operation} `)} = ${this.value}`;
+          }
+        }
+
+        // Domain Value Objects
+        class MathOperation {
+          constructor(symbol, name, precedence) {
+            this.symbol = symbol;
+            this.name = name;
+            this.precedence = precedence;
+          }
+        }
+
+        // Domain Services - Business logic that doesn't belong to entities
+        class CalculationValidator {
+          static validateNumber(value) {
+            if (value === null || value === undefined) {
+              throw new Error('Value cannot be null or undefined');
+            }
+            
+            const numValue = Number(value);
+            if (isNaN(numValue)) {
+              throw new Error(`Invalid number: ${value}`);
+            }
+            
+            return numValue;
+          }
+
+          static validateOperation(operation) {
+            const validOperations = ['+', '-', '*', '/', '%', '^'];
+            if (!validOperations.includes(operation)) {
+              throw new Error(`Invalid operation: ${operation}`);
+            }
+            return operation;
+          }
+
+          static validateDivision(dividend, divisor) {
+            if (divisor === 0) {
+              throw new Error('Division by zero is not allowed');
+            }
+          }
+        }
+
+        // ========================================
+        // APPLICATION LAYER - Use Cases
+        // ========================================
+
+        // Repository Interface (Port)
+        class ICalculationHistoryRepository {
+          async save(calculationResult) {
+            throw new Error('Method must be implemented');
+          }
+
+          async getHistory(limit = 10) {
+            throw new Error('Method must be implemented');
+          }
+
+          async clear() {
+            throw new Error('Method must be implemented');
+          }
+        }
+
+        // Use Cases - Application business rules
+        class PerformCalculationUseCase {
+          constructor(historyRepository) {
+            this.historyRepository = historyRepository;
+          }
+
+          async execute(firstOperand, operation, secondOperand) {
+            try {
+              // Validate inputs
+              const validFirstOperand = CalculationValidator.validateNumber(firstOperand);
+              const validOperation = CalculationValidator.validateOperation(operation);
+              const validSecondOperand = CalculationValidator.validateNumber(secondOperand);
+
+              // Perform calculation
+              const result = this._calculate(validFirstOperand, validOperation, validSecondOperand);
+              
+              // Create result object
+              const calculationResult = new CalculationResult(
+                result,
+                validOperation,
+                [validFirstOperand, validSecondOperand]
+              );
+
+              // Save to history
+              await this.historyRepository.save(calculationResult);
+
+              return calculationResult;
+            } catch (error) {
+              throw new Error(`Calculation failed: ${error.message}`);
+            }
+          }
+
+          _calculate(firstOperand, operation, secondOperand) {
+            switch (operation) {
+              case '+':
+                return this._add(firstOperand, secondOperand);
+              case '-':
+                return this._subtract(firstOperand, secondOperand);
+              case '*':
+                return this._multiply(firstOperand, secondOperand);
+              case '/':
+                return this._divide(firstOperand, secondOperand);
+              case '%':
+                return this._modulo(firstOperand, secondOperand);
+              case '^':
+                return this._power(firstOperand, secondOperand);
+              default:
+                throw new Error(`Unsupported operation: ${operation}`);
+            }
+          }
+
+          _add(a, b) {
+            return a + b;
+          }
+
+          _subtract(a, b) {
+            return a - b;
+          }
+
+          _multiply(a, b) {
+            return a * b;
+          }
+
+          _divide(a, b) {
+            CalculationValidator.validateDivision(a, b);
+            return a / b;
+          }
+
+          _modulo(a, b) {
+            CalculationValidator.validateDivision(a, b);
+            return a % b;
+          }
+
+          _power(a, b) {
+            return Math.pow(a, b);
+          }
+        }
+
+        class GetCalculationHistoryUseCase {
+          constructor(historyRepository) {
+            this.historyRepository = historyRepository;
+          }
+
+          async execute(limit = 10) {
+            return await this.historyRepository.getHistory(limit);
+          }
+        }
+
+        class ClearCalculationHistoryUseCase {
+          constructor(historyRepository) {
+            this.historyRepository = historyRepository;
+          }
+
+          async execute() {
+            return await this.historyRepository.clear();
+          }
+        }
+
+        // ========================================
+        // INFRASTRUCTURE LAYER - External Concerns
+        // ========================================
+
+        // Repository Implementation (Adapter)
+        class InMemoryCalculationHistoryRepository extends ICalculationHistoryRepository {
+          constructor() {
+            super();
+            this.calculations = [];
+          }
+
+          async save(calculationResult) {
+            this.calculations.unshift(calculationResult);
+            return calculationResult;
+          }
+
+          async getHistory(limit = 10) {
+            return this.calculations.slice(0, limit);
+          }
+
+          async clear() {
+            this.calculations = [];
+            return true;
+          }
+        }
+
+        // ========================================
+        // PRESENTATION LAYER - Controllers & UI
+        // ========================================
+
+        // DTOs for data transfer
+        class CalculationRequestDTO {
+          constructor(firstOperand, operation, secondOperand) {
+            this.firstOperand = firstOperand;
+            this.operation = operation;
+            this.secondOperand = secondOperand;
+          }
+        }
+
+        class CalculationResponseDTO {
+          constructor(result, operation, operands, timestamp, error = null) {
+            this.result = result;
+            this.operation = operation;
+            this.operands = operands;
+            this.timestamp = timestamp;
+            this.error = error;
+          }
+
+          static fromCalculationResult(calculationResult) {
+            return new CalculationResponseDTO(
+              calculationResult.value,
+              calculationResult.operation,
+              calculationResult.operands,
+              calculationResult.timestamp
+            );
+          }
+
+          static fromError(error) {
+            return new CalculationResponseDTO(null, null, null, new Date(), error.message);
+          }
+        }
+
+        // Controller
+        class CalculatorController {
+          constructor(performCalculationUseCase, getHistoryUseCase, clearHistoryUseCase) {
+            this.performCalculationUseCase = performCalculationUseCase;
+            this.getHistoryUseCase = getHistoryUseCase;
+            this.clearHistoryUseCase = clearHistoryUseCase;
+          }
+
+          async calculate(requestDTO) {
+            try {
+              const result = await this.performCalculationUseCase.execute(
+                requestDTO.firstOperand,
+                requestDTO.operation,
+                requestDTO.secondOperand
+              );
+              
+              return CalculationResponseDTO.fromCalculationResult(result);
+            } catch (error) {
+              return CalculationResponseDTO.fromError(error);
+            }
+          }
+
+          async getHistory(limit = 10) {
+            try {
+              const history = await this.getHistoryUseCase.execute(limit);
+              return history.map(calc => CalculationResponseDTO.fromCalculationResult(calc));
+            } catch (error) {
+              return [];
+            }
+          }
+
+          async clearHistory() {
+            try {
+              await this.clearHistoryUseCase.execute();
+              return { success: true };
+            } catch (error) {
+              return { success: false, error: error.message };
+            }
+          }
+        }
+
+        // ========================================
+        // DEPENDENCY INJECTION & COMPOSITION ROOT
+        // ========================================
+
+        class CalculatorApplicationFactory {
+          static create() {
+            // Infrastructure dependencies
+            const historyRepository = new InMemoryCalculationHistoryRepository();
+
+            // Application services (Use Cases)
+            const performCalculationUseCase = new PerformCalculationUseCase(historyRepository);
+            const getHistoryUseCase = new GetCalculationHistoryUseCase(historyRepository);
+            const clearHistoryUseCase = new ClearCalculationHistoryUseCase(historyRepository);
+
+            // Presentation layer
+            const controller = new CalculatorController(
+              performCalculationUseCase,
+              getHistoryUseCase,
+              clearHistoryUseCase
+            );
+
+            return controller;
+          }
+        }
+
+        // ========================================
+        // INTERACTIVE DEMO FOR BROWSER
+        // ========================================
+
+        // Function to log to both console and HTML
+        function logToPage(message) {
+            console.log(message);
+            const output = document.getElementById('output');
+            output.innerHTML += `<p>${message}</p>`;
+        }
+
+        // Create the application
+        const calculator = CalculatorApplicationFactory.create();
+
+        // Interactive demonstration
+        async function runInteractiveDemo() {
+            logToPage('=== Clean Architecture Calculator Demo ===');
+
+            // Perform some calculations
+            const calculations = [
+                new CalculationRequestDTO(10, '+', 5),
+                new CalculationRequestDTO(20, '-', 8),
+                new CalculationRequestDTO(6, '*', 7),
+                new CalculationRequestDTO(15, '/', 3),
+                new CalculationRequestDTO(10, '%', 3),
+                new CalculationRequestDTO(2, '^', 8)
+            ];
+
+            logToPage('Performing calculations:');
+            for (const calc of calculations) {
+                const result = await calculator.calculate(calc);
+                if (result.error) {
+                    logToPage(`❌ Error: ${result.error}`);
+                } else {
+                    logToPage(`✅ ${calc.firstOperand} ${calc.operation} ${calc.secondOperand} = ${result.result}`);
+                }
+            }
+
+            // Test error handling
+            logToPage('Testing error handling:');
+            const errorTest = await calculator.calculate(new CalculationRequestDTO(10, '/', 0));
+            logToPage(`❌ Division by zero result: ${errorTest.error}`);
+
+            // Show history
+            logToPage('📚 Calculation History:');
+            const history = await calculator.getHistory(5);
+            history.forEach((calc, index) => {
+                logToPage(`${index + 1}. ${calc.operands.join(` ${calc.operation} `)} = ${calc.result}`);
+            });
+
+            // Clear history
+            logToPage('🧹 Clearing history...');
+            await calculator.clearHistory();
+            const clearedHistory = await calculator.getHistory();
+            logToPage(`History after clearing: ${clearedHistory.length} items`);
+
+            logToPage('✨ Demo completed! Check the browser console for more details.');
+        }
+
+        // Run the demo when page loads
+        window.addEventListener('load', () => {
+            runInteractiveDemo().catch(console.error);
+        });
+
+        // Make calculator available globally for manual testing
+        window.calculator = calculator;
+        window.CalculationRequestDTO = CalculationRequestDTO;
+
+        logToPage('Calculator loaded! You can also test manually in the console:');
+        logToPage('Example: calculator.calculate(new CalculationRequestDTO(5, "*", 3))');
+    </script>
+</body>
+</html>
