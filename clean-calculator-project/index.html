@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Architecture Calculator - Test Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .description {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #666;
+        }
+        .demo-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .nav-links a {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nav-links a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        #output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .feature {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .feature h3 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clean Architecture Calculator</h1>
+        <p class="description">A demonstration of Clean Architecture principles in JavaScript</p>
+        
+        <div class="nav-links">
+            <a href="src/presentation/web/index.html">Open Calculator App</a>
+            <a href="#demo" onclick="runInteractiveDemo()">Run Console Demo</a>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <h3>🏗️ Clean Architecture</h3>
+                <p>Follows Uncle Bob's Clean Architecture principles with clear separation of concerns</p>
+            </div>
+            <div class="feature">
+                <h3>📦 Modular Design</h3>
+                <p>Each layer is independent and testable with proper dependency injection</p>
+            </div>
+            <div class="feature">
+                <h3>🔄 SOLID Principles</h3>
+                <p>Implements SOLID principles for maintainable and extensible code</p>
+            </div>
+            <div class="feature">
+                <h3>🧪 Test-Ready</h3>
+                <p>Structure designed for easy unit testing and mocking</p>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Console Demo</h2>
+            <p>Open the browser console (F12) to see detailed test results, or click the demo button above!</p>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import all necessary modules for the demo
+        import { CalculatorApplicationFactory } from './src/config/CalculatorApplicationFactory.js';
+        import { CalculationRequestDTO } from './src/application/dto/CalculationRequestDTO.js';
+
+        // Function to log to both console and HTML
+        function logToPage(message) {
+            console.log(message);
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Create the application
+        const calculator = CalculatorApplicationFactory.create();
+
+        // Interactive demonstration
+        async function runInteractiveDemo() {
+            const output = document.getElementById('output');
+            output.textContent = '';
+            
+            logToPage('=== Clean Architecture Calculator Demo ===');
+
+            // Perform some calculations
+            const calculations = [
+                new CalculationRequestDTO(10, '+', 5),
+                new CalculationRequestDTO(20, '-', 8),
+                new CalculationRequestDTO(6, '*', 7),
+                new CalculationRequestDTO(15, '/', 3),
+                new CalculationRequestDTO(10, '%', 3),
+                new CalculationRequestDTO(2, '^', 8)
+            ];
+
+            logToPage('\nPerforming calculations:');
+            for (const calc of calculations) {
+                const result = await calculator.calculate(calc);
+                if (result.error) {
+                    logToPage(`❌ Error: ${result.error}`);
+                } else {
+                    logToPage(`✅ ${calc.firstOperand} ${calc.operation} ${calc.secondOperand} = ${result.result}`);
+                }
+            }
+
+            // Test error handling
+            logToPage('\nTesting error handling:');
+            const errorTest = await calculator.calculate(new CalculationRequestDTO(10, '/', 0));
+            logToPage(`❌ Division by zero result: ${errorTest.error}`);
+
+            // Show history
+            logToPage('\n📚 Calculation History:');
+            const history = await calculator.getHistory(5);
+            history.forEach((calc, index) => {
+                logToPage(`${index + 1}. ${calc.operands.join(` ${calc.operation} `)} = ${calc.result}`);
+            });
+
+            // Clear history
+            logToPage('\n🧹 Clearing history...');
+            await calculator.clearHistory();
+            const clearedHistory = await calculator.getHistory();
+            logToPage(`History after clearing: ${clearedHistory.length} items`);
+
+            logToPage('\n✨ Demo completed! Check the browser console for more details.');
+            logToPage('\n💡 Try the interactive calculator at: src/presentation/web/index.html');
+        }
+
+        // Make functions available globally
+        window.runInteractiveDemo = runInteractiveDemo;
+        window.calculator = calculator;
+        window.CalculationRequestDTO = CalculationRequestDTO;
+
+        // Run demo automatically on page load
+        window.addEventListener('load', () => {
+            console.log('Clean Architecture Calculator loaded!');
+            console.log('You can test manually in the console:');
+            console.log('Example: calculator.calculate(new CalculationRequestDTO(5, "*", 3))');
+        });
+    </script>
+</body>
+</html>

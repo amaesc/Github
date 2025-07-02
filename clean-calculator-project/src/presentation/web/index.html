@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Architecture Calculator</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Clean Architecture Calculator</h1>
+            <p>A demonstration of Clean Architecture principles in JavaScript</p>
+        </header>
+
+        <main>
+            <div class="calculator-section">
+                <div class="input-group">
+                    <input type="number" id="firstOperand" placeholder="First number" step="any">
+                    <select id="operation">
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                        <option value="*">×</option>
+                        <option value="/">/</option>
+                        <option value="%">%</option>
+                        <option value="^">^</option>
+                    </select>
+                    <input type="number" id="secondOperand" placeholder="Second number" step="any">
+                    <button id="calculateBtn">Calculate</button>
+                </div>
+                
+                <div class="result-section">
+                    <div id="result" class="result-display"></div>
+                    <div id="error" class="error-display hidden"></div>
+                </div>
+            </div>
+
+            <div class="history-section">
+                <div class="history-header">
+                    <h2>Calculation History</h2>
+                    <button id="clearHistoryBtn">Clear History</button>
+                </div>
+                <div id="history" class="history-list"></div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Interactive Demo</h2>
+                <button id="runDemoBtn">Run Demo</button>
+                <div id="demoOutput" class="demo-output"></div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="js/calculator-ui.js"></script>
+</body>
+</html>
